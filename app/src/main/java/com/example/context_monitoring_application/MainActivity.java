@@ -16,8 +16,11 @@ import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.MediaRecorder;
+import android.os.Build;
 import android.os.Bundle;
+import android.util.SparseIntArray;
 import android.view.SurfaceHolder;
 import android.view.TextureView;
 import android.view.View;
@@ -42,13 +45,14 @@ import android.os.HandlerThread;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int REQUEST_CAMERA_PERMISSION = 101;
+    private static final int REQUEST_CAMERA_PERMISSION = 0;
 
     private TextureView cameraPreview;
     private TextureView.SurfaceTextureListener surfaceTextureListener = new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surfaceTexture, int width, int height) {
             setupCamera(width, height);
+            connectCamera();
         }
 
         @Override
@@ -74,6 +78,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onOpened(CameraDevice camera) {
             cameraDevice = camera;
+            startPreview();
+//            Toast.makeText(getApplicationContext(), "Camera connection established", Toast.LENGTH_SHORT).show();
         }
 
         @Override
@@ -92,6 +98,25 @@ public class MainActivity extends AppCompatActivity {
     private HandlerThread backgroundHandlerThread;
     private Handler backgroundHandler;
     private String cameraIds;
+
+    private Size previewSize;
+    private CaptureRequest.Builder captureRequestBuilder;
+
+    private static SparseIntArray ORIENTATIONS = new SparseIntArray();
+
+    static{
+        ORIENTATIONS.append(Surface.ROTATION_0, 0);
+        ORIENTATIONS.append(Surface.ROTATION_90, 0);
+        ORIENTATIONS.append(Surface.ROTATION_180, 0);
+        ORIENTATIONS.append(Surface.ROTATION_270, 0);
+    }
+
+    private static class CompareSizeByArea implements Comparator<Size>{
+        @Override
+        public int compare(Size lhs, Size rhs){
+            return Long.signum((long) lhs.getWidth() * lhs.getHeight() / (long) rhs.getWidth() * rhs.getHeight());
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -119,6 +144,7 @@ public class MainActivity extends AppCompatActivity {
 
         if(cameraPreview.isAvailable()){
             setupCamera(cameraPreview.getWidth(), cameraPreview.getHeight());
+            connectCamera();
         }else{
             cameraPreview.setSurfaceTextureListener(surfaceTextureListener);
         }
@@ -139,6 +165,18 @@ public class MainActivity extends AppCompatActivity {
                 if(cameraCharacteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT){
                     continue;
                 }
+                StreamConfigurationMap map = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+                int deviceOrientation = getWindowManager().getDefaultDisplay().getRotation();
+                int totalRotation = sensorToDeviceRotation(cameraCharacteristics, deviceOrientation);
+                boolean swapRotation = totalRotation == 90 || totalRotation == 270;
+                int rotatedWidth = width;
+                int rotatedHeight = height;
+
+                if(swapRotation){
+                    rotatedWidth = height;
+                    rotatedHeight = width;
+                }
+                previewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class), rotatedWidth, rotatedHeight);
                 cameraIds = cameraId;
                 return;
             }
@@ -146,6 +184,55 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
 
+    }
+
+    private void connectCamera(){
+        CameraManager cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        try{
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
+                if(ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED){
+                    cameraManager.openCamera(cameraIds, stateCallback, backgroundHandler);
+                } else {
+                    if(shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)){
+                        Toast.makeText(this, "This application requires access to camera", Toast.LENGTH_SHORT).show();
+                    }
+                    requestPermissions(new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
+                }
+            }else {
+                cameraManager.openCamera(cameraIds, stateCallback, backgroundHandler);
+            }
+        }catch(CameraAccessException e){
+            e.printStackTrace();
+        }
+    }
+
+    private void startPreview(){
+        SurfaceTexture surfaceTexture = cameraPreview.getSurfaceTexture();
+        surfaceTexture.setDefaultBufferSize(previewSize.getWidth(), previewSize.getHeight());
+        Surface previewSurface = new Surface(surfaceTexture);
+
+        try{
+            captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            captureRequestBuilder.addTarget(previewSurface);
+
+            cameraDevice.createCaptureSession(Arrays.asList(previewSurface), new CameraCaptureSession.StateCallback(){
+                @Override
+                public void onConfigured(CameraCaptureSession cameraCaptureSession) {
+                    try{
+                        cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
+                    }catch(CameraAccessException e){
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void onConfigureFailed( CameraCaptureSession cameraCaptureSession) {
+                    Toast.makeText(getApplicationContext(), "Camera preview failed", Toast.LENGTH_SHORT).show();
+                }
+            }, null);
+        }catch(CameraAccessException e){
+            e.printStackTrace();
+        }
     }
 
     private void closeCamera(){
@@ -170,5 +257,34 @@ public class MainActivity extends AppCompatActivity {
         }catch(InterruptedException e){
             e.printStackTrace();
         }
+    }
+
+    private static int sensorToDeviceRotation(CameraCharacteristics cameraCharacteristics, int deviceOrientation){
+        int sensorOrientation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+        deviceOrientation = ORIENTATIONS.get(deviceOrientation);
+        return (sensorOrientation + deviceOrientation + 360) % 360;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults){
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(requestCode == REQUEST_CAMERA_PERMISSION){
+            if(grantResults[0] != PackageManager.PERMISSION_GRANTED){
+                Toast.makeText(getApplicationContext(), "Application will not run without camera services", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private static Size chooseOptimalSize(Size[] choices, int width, int height){
+        List<Size> bigEnough = new ArrayList<Size>();
+        for(Size option: choices){
+            if(option.getHeight() == option.getWidth() * height / width && option.getWidth() >= width && option.getHeight() >= height) {
+                bigEnough.add(option);
+            }
+        }
+        if(bigEnough.size() > 0){
+            return Collections.min(bigEnough, new CompareSizeByArea());
+        }
+        return choices[0];
     }
 }
