@@ -20,6 +20,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.SparseIntArray;
 import android.view.SurfaceHolder;
 import android.view.TextureView;
@@ -32,6 +33,7 @@ import android.os.Handler;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -79,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
         public void onOpened(CameraDevice camera) {
             cameraDevice = camera;
             startPreview();
+
+
 //            Toast.makeText(getApplicationContext(), "Camera connection established", Toast.LENGTH_SHORT).show();
         }
 
@@ -99,7 +103,19 @@ public class MainActivity extends AppCompatActivity {
     private Handler backgroundHandler;
     private String cameraIds;
 
+    private boolean isRecording = false;
+
+    private File videoFolder;
+
+    private String videoFileName;
+
     private Size previewSize;
+
+    private Size videoSize;
+
+    private MediaRecorder mediaRecorder;
+
+    private int totalRotation;
     private CaptureRequest.Builder captureRequestBuilder;
 
     private static SparseIntArray ORIENTATIONS = new SparseIntArray();
@@ -122,6 +138,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        createVideoFolder();
 
         Button symBtn = (Button) findViewById(R.id.symBtn);
 
@@ -132,9 +149,24 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        mediaRecorder = new MediaRecorder();
+
+
         cameraPreview = (TextureView) findViewById(R.id.cameraPreview);
         measureHrtRate = findViewById(R.id.heartRateBtn);
+
+        measureHrtRate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+//                if(isRecording){
+//                    startRecording();
+//                } else {
+//                    stopRecording();
+//                }
+            }
+        });
     }
+
 
     @Override
     protected void onResume(){
@@ -167,7 +199,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 StreamConfigurationMap map = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                 int deviceOrientation = getWindowManager().getDefaultDisplay().getRotation();
-                int totalRotation = sensorToDeviceRotation(cameraCharacteristics, deviceOrientation);
+                totalRotation = sensorToDeviceRotation(cameraCharacteristics, deviceOrientation);
                 boolean swapRotation = totalRotation == 90 || totalRotation == 270;
                 int rotatedWidth = width;
                 int rotatedHeight = height;
@@ -177,6 +209,7 @@ public class MainActivity extends AppCompatActivity {
                     rotatedHeight = width;
                 }
                 previewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class), rotatedWidth, rotatedHeight);
+                videoSize = chooseOptimalSize(map.getOutputSizes(MediaRecorder.class), rotatedWidth, rotatedHeight);
                 cameraIds = cameraId;
                 return;
             }
@@ -286,5 +319,39 @@ public class MainActivity extends AppCompatActivity {
             return Collections.min(bigEnough, new CompareSizeByArea());
         }
         return choices[0];
+    }
+
+    private void setupMediaRecorder() throws IOException{
+        mediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        mediaRecorder.setOutputFile(videoFileName);
+        mediaRecorder.setVideoEncodingBitRate(1000000);
+        mediaRecorder.setVideoFrameRate(30);
+        mediaRecorder.setVideoSize(videoSize.getWidth(), videoSize.getHeight());
+        mediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+        mediaRecorder.setOrientationHint(totalRotation);
+        mediaRecorder.prepare();
+    }
+
+    private void createVideoFolder(){
+        File movieFile = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
+        videoFolder = new File(movieFile, "contextMonitoringApp");
+
+        if(!videoFolder.exists()){
+            videoFolder.mkdirs();
+        }
+    }
+
+    private File createVideoFileName() throws IOException{
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String prepend = "VIDEO_" + timestamp + "_";
+
+        File videoFile = File.createTempFile(prepend, ".mp4", videoFolder);
+        videoFileName = videoFile.getAbsolutePath();
+        return videoFile;
+    }
+
+    private void checkWriteStoragePermission(){
+
     }
 }
