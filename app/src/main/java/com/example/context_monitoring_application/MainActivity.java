@@ -48,6 +48,7 @@ import android.os.HandlerThread;
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_CAMERA_PERMISSION = 0;
+    private static final int REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION = 1;
 
     private TextureView cameraPreview;
     private TextureView.SurfaceTextureListener surfaceTextureListener = new TextureView.SurfaceTextureListener() {
@@ -74,16 +75,27 @@ public class MainActivity extends AppCompatActivity {
     };
 
     private Button measureHrtRate;
+    private Button measureRespRate;
+
 
     private CameraDevice cameraDevice;
     private CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(CameraDevice camera) {
             cameraDevice = camera;
-            startPreview();
+            if(isRecording){
+                try {
+                    createVideoFileName();
+                }catch (IOException e){
+                    e.printStackTrace();
+                }
+                startRecord();
+                mediaRecorder.start();
+            } else {
+                startPreview();
+            }
 
-
-//            Toast.makeText(getApplicationContext(), "Camera connection established", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Camera connection established", Toast.LENGTH_SHORT).show();
         }
 
         @Override
@@ -154,15 +166,19 @@ public class MainActivity extends AppCompatActivity {
 
         cameraPreview = (TextureView) findViewById(R.id.cameraPreview);
         measureHrtRate = findViewById(R.id.heartRateBtn);
+        measureRespRate = findViewById(R.id.respRateBtn);
 
         measureHrtRate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-//                if(isRecording){
-//                    startRecording();
-//                } else {
-//                    stopRecording();
-//                }
+                Toast.makeText(getApplicationContext(),"Button was pressed", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        measureRespRate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Toast.makeText(getApplicationContext(),"Resp Button was pressed", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -229,12 +245,45 @@ public class MainActivity extends AppCompatActivity {
                     if(shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)){
                         Toast.makeText(this, "This application requires access to camera", Toast.LENGTH_SHORT).show();
                     }
-                    requestPermissions(new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
                 }
             }else {
                 cameraManager.openCamera(cameraIds, stateCallback, backgroundHandler);
             }
         }catch(CameraAccessException e){
+            e.printStackTrace();
+        }
+    }
+
+    private void startRecord(){
+        try {
+            setupMediaRecorder();
+            SurfaceTexture surfaceTexture = cameraPreview.getSurfaceTexture();
+            surfaceTexture.setDefaultBufferSize(previewSize.getWidth(), previewSize.getHeight());
+            Surface previewSurface = new Surface(surfaceTexture);
+            Surface recordSurface = mediaRecorder.getSurface();
+
+            captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
+            captureRequestBuilder.addTarget(previewSurface);
+            captureRequestBuilder.addTarget(recordSurface);
+
+            cameraDevice.createCaptureSession(Arrays.asList(previewSurface, recordSurface), new CameraCaptureSession.StateCallback() {
+                @Override
+                public void onConfigured(CameraCaptureSession cameraCaptureSession) {
+                    try {
+                        cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, null);
+                    }catch (CameraAccessException e){
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void onConfigureFailed(CameraCaptureSession cameraCaptureSession) {
+
+                }
+            }, null);
+        }catch(Exception e){
             e.printStackTrace();
         }
     }
@@ -306,6 +355,20 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(), "Application will not run without camera services", Toast.LENGTH_SHORT).show();
             }
         }
+        if(requestCode == REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION){
+            if(grantResults[1] == PackageManager.PERMISSION_GRANTED){
+                isRecording = true;
+                measureHrtRate.setEnabled(false);
+                try {
+                    File trial = createVideoFileName();
+                }catch (IOException e){
+                    e.printStackTrace();
+                }
+                Toast.makeText(this, "Permission successfully granted", Toast.LENGTH_SHORT).show();
+            }else{
+                Toast.makeText(getApplicationContext(), "Application requires external storage permissions", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     private static Size chooseOptimalSize(Size[] choices, int width, int height){
@@ -352,6 +415,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkWriteStoragePermission(){
-
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
+            if(ContextCompat.checkSelfPermission(this,Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
+                isRecording = true;
+                measureHrtRate.setEnabled(false);
+                try {
+                    File trial = createVideoFileName();
+                    startRecord();
+                    mediaRecorder.start();
+                    startPreview();
+                }catch (IOException e){
+                    e.printStackTrace();
+                }
+            } else {
+                if(shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)){
+                    Toast.makeText(this, "Application needs external storage access", Toast.LENGTH_SHORT).show();
+                }
+                ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION);
+            }
+        } else {
+            isRecording = true;
+            measureHrtRate.setEnabled(false);
+            try {
+               File trial = createVideoFileName();
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+            startRecord();
+            mediaRecorder.start();
+        }
     }
 }
