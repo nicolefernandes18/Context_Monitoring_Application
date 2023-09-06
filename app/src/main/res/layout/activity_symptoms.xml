@@ -12,12 +12,11 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:fontFamily="casual"
         android:text="Symptom Logging Page"
         android:layout_gravity="center"
         android:textColor="@color/black"
-        android:textFontWeight="800"
-        android:textSize="24dp"
+        android:fontFamily="sans-serif"
+        android:textSize="30dp"
         android:layout_margin="20dp"/>
 
     <com.google.android.material.textfield.TextInputLayout
@@ -70,6 +69,7 @@
             android:paddingEnd="10dp"
             android:text="Upload Symptoms"
             android:layout_margin="20dp"
+            android:fontFamily="sans-serif"
             android:textColor="@android:color/background_light"
             android:textSize="24sp"
             android:layout_gravity="center_horizontal|center"
