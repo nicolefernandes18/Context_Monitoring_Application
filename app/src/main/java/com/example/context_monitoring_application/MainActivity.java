@@ -18,9 +18,14 @@ import android.provider.MediaStore;
 import android.view.View;
 
 import android.widget.Button;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -31,6 +36,11 @@ public class MainActivity extends AppCompatActivity {
     private Uri videoUri;
 
     private String heartRate;
+    private ExecutorService executorService;
+
+    private ProgressBar progressHeartRate;
+
+    private TextView heartRateValueText;
 
     ActivityResultLauncher<Intent> activityResultLauncher;
 
@@ -40,6 +50,12 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         Button symBtn = (Button) findViewById(R.id.symBtn);
+
+        heartRateValueText = findViewById(R.id.heartRateValueText);
+
+        progressHeartRate = findViewById(R.id.progressBarHeartRate);
+
+        executorService = Executors.newSingleThreadExecutor();
 
         symBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -55,28 +71,22 @@ public class MainActivity extends AppCompatActivity {
             if (result.getResultCode() == RESULT_OK && result.getData() != null){
                 Intent data = result.getData();
                 videoUri = data.getData();
+                calculateHeartRateValue(videoUri);
             }
         });
 
         measureHrtRate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                progressHeartRate.setVisibility(View.VISIBLE);
                 checkCameraPermissions();
-
             }
         });
 
         measureRespRate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                String videoConverted = convertMediaUriToPath(getApplicationContext(), videoUri);
-                SlowTask slowTask = new SlowTask();
-                try {
-                    heartRate = slowTask.doInBackground(videoConverted);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                Toast.makeText(getApplicationContext(),heartRate, Toast.LENGTH_SHORT).show();
+
             }
         });
     }
@@ -116,6 +126,33 @@ public class MainActivity extends AppCompatActivity {
         String path = cursor.getString(column_index);
         cursor.close();
         return path;
+    }
+
+    private void calculateHeartRateValue(final Uri videoUri){
+
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                String videoConverted = convertMediaUriToPath(getApplicationContext(), videoUri);
+
+                try {
+                    heartRate = SlowTask.calculateHeartRate(videoConverted);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(heartRate != null){
+                            progressHeartRate.setVisibility(View.GONE);
+                            heartRateValueText.setText(heartRate);
+                            heartRateValueText.setVisibility(View.VISIBLE);
+                        }
+                    }
+                });
+            }
+        });
     }
 
 }

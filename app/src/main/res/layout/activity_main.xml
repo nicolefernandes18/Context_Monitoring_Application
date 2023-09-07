@@ -10,28 +10,31 @@
     android:background="#bfd"
     tools:context=".MainActivity">
 
-
-    <androidx.appcompat.widget.AppCompatButton
-        android:id="@+id/symBtn"
-        android:layout_width="match_parent"
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="#006db0"
-        android:paddingStart="10dp"
-        android:paddingEnd="10dp"
-        android:layout_margin="20dp"
-        android:text="Symptoms"
-        android:fontFamily="sans-serif"
-        android:layout_gravity="center"
-        android:textColor="@android:color/background_light"
-        android:textSize="24sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        android:text="Heart Rate"
+        android:padding="8dp"
+        android:textSize="26sp"
+        android:fontFamily="casual"
+        android:layout_marginTop="16dp"/>
 
+    <ProgressBar
+        android:id="@+id/progressBarHeartRate"
+        style="?android:attr/progressBarStyle"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
 
-
-
+    <TextView
+        android:id="@+id/heartRateValueText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="26sp"
+        android:fontFamily="casual"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"/>
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/heartRateBtn"
@@ -44,11 +47,33 @@
         android:fontFamily="sans-serif"
         android:layout_margin="20dp"
         android:textColor="@android:color/background_light"
-        android:textSize="24sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:textSize="24sp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Respiratory Rate"
+        android:padding="8dp"
+        android:textSize="26sp"
+        android:fontFamily="casual"
+        android:layout_marginTop="16dp"/>
+
+    <ProgressBar
+        android:id="@+id/progressBarRespRate"
+        style="?android:attr/progressBarStyle"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/RespRateValueText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="26sp"
+        android:fontFamily="casual"
+        android:layout_marginTop="16dp"
+        android:visibility="gone"/>
 
     <androidx.appcompat.widget.AppCompatButton
 
@@ -85,5 +110,23 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/symBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#006db0"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:layout_margin="20dp"
+        android:text="Symptoms"
+        android:fontFamily="sans-serif"
+        android:layout_gravity="center"
+        android:textColor="@android:color/background_light"
+        android:textSize="24sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </LinearLayout>
