@@ -68,28 +68,6 @@ public class SlowTask
         }
     }
 
-    private int callRespiratoryCalculator() {
-        float previousValue = 0.0f;
-        float currentValue = 0.0f;
-        previousValue = 10.0f;
-        int k = 0;
 
-//        for (int i = 11; i <= 450; i++) {
-//            currentValue = (float) Math.sqrt(
-//                    Math.pow(accelValuesZ[i], 2.0) +
-//                            Math.pow(accelValuesX[i], 2.0) +
-//                            Math.pow(accelValuesY[i], 2.0)
-//            );
-//
-//            if (Math.abs(previousValue - currentValue) > 0.15) {
-//                k++;
-//            }
-//
-//            previousValue = currentValue;
-//        }
-
-        double ret = (double) k / 45.00;
-        return (int) (ret * 30);
-    }
 
 }

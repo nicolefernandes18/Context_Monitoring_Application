@@ -4,6 +4,7 @@ package com.example.context_monitoring_application;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
@@ -12,6 +13,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -23,13 +28,17 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.util.EventListener;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity{
 
     private Button measureHrtRate;
+
+    private TextView respRateValueText;
+
+    private String respRate;
 
     private static final int REQUEST_CAMERA_PERMISSION = 1;
     private Button measureRespRate;
@@ -41,6 +50,14 @@ public class MainActivity extends AppCompatActivity {
     private ProgressBar progressHeartRate;
 
     private TextView heartRateValueText;
+
+    private float accelValueX[] = new float[128];
+    private float accelValueY[] = new float[128];
+    private float accelValueZ[] = new float[128];
+
+    private int index = 0;
+
+    Toolbar toolbar;
 
     ActivityResultLauncher<Intent> activityResultLauncher;
 
@@ -55,7 +72,13 @@ public class MainActivity extends AppCompatActivity {
 
         progressHeartRate = findViewById(R.id.progressBarHeartRate);
 
-        executorService = Executors.newSingleThreadExecutor();
+        executorService = Executors.newFixedThreadPool(3);
+
+        respRateValueText = findViewById(R.id.respRateValueText);
+
+        toolbar = (Toolbar) findViewById(R.id.toolbar);
+
+        setSupportActionBar(toolbar);
 
         symBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -86,8 +109,49 @@ public class MainActivity extends AppCompatActivity {
         measureRespRate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                SensorManager sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+
+                if(sensorManager != null){
+
+                    Sensor accelSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+
+                    if(accelSensor != null){
+                        Toast.makeText(getApplicationContext(), "Sensor service detected", Toast.LENGTH_SHORT).show();
+
+                        sensorManager.registerListener(new SensorEventListener() {
+                            @Override
+                            public void onSensorChanged(SensorEvent event) {
+
+                                if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER){
+                                    index++;
+                                    accelValueX[index] = event.values[0];
+                                    accelValueY[index] = event.values[1];
+                                    accelValueZ[index] = event.values[2];
+
+                                    respRateValueText.setText("X: "+accelValueX[index]+", Y: "+accelValueY[index]+" Z: "+accelValueZ[index]);
+                                    respRateValueText.setVisibility(View.VISIBLE);
+
+                                    if(index >= 127){
+                                        index = 0;
+                                        sensorManager.unregisterListener(this);
+                                        callRespiratoryCalculator();
+                                    }
+                                }
+                            }
+
+                            @Override
+                            public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+                            }
+                        }, accelSensor, SensorManager.SENSOR_DELAY_NORMAL);
+                    }
+
+                }else{
+                    Toast.makeText(getApplicationContext(), "Sensor service not detected", Toast.LENGTH_SHORT).show();
+                }
 
             }
+
         });
     }
 
@@ -155,6 +219,52 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void callRespiratoryCalculator() {
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    respRate = calculateRespRateValue();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(respRate != null){
+                            respRateValueText.setText(respRate);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    private String calculateRespRateValue(){
+        float previousValue = 0.0f;
+        float currentValue = 0.0f;
+        previousValue = 10.0f;
+        int k = 0;
+
+        for (int i = 0; i <= 127; i++) {
+            currentValue = (float) Math.sqrt(
+                    Math.pow(accelValueZ[i], 2.0) +
+                            Math.pow(accelValueX[i], 2.0) +
+                            Math.pow(accelValueY[i], 2.0)
+            );
+
+            if (Math.abs(previousValue - currentValue) > 0.15) {
+                k++;
+            }
+
+            previousValue = currentValue;
+        }
+
+        double ret = (double) k / 45.00;
+        int result = (int) (ret * 30);
+        return String.valueOf(result);
+    }
 }
 
 
