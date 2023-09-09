@@ -17,12 +17,11 @@
         android:layout_gravity="center"
         android:background="#7393b3"
         android:elevation="4dp"
-        style="@style/ToolBarStyle"
+        app:theme="@style/ToolBarStyle"
         android:minHeight="?attr/actionBarSize"
-        android:theme="?attr/actionBarTheme"
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar"
         app:logo="@mipmap/ic_launcher_round"
-        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
-        app:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar" />
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
 
     <LinearLayout
         android:layout_width="match_parent"

@@ -51,6 +51,8 @@ public class MainActivity extends AppCompatActivity{
 
     private TextView heartRateValueText;
 
+    private Button uploadBtn;
+
     private float accelValueX[] = new float[128];
     private float accelValueY[] = new float[128];
     private float accelValueZ[] = new float[128];
@@ -80,6 +82,8 @@ public class MainActivity extends AppCompatActivity{
 
         setSupportActionBar(toolbar);
 
+        DatabaseHelper databaseHelper = new DatabaseHelper(this);
+
         symBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -89,6 +93,15 @@ public class MainActivity extends AppCompatActivity{
 
         measureHrtRate = findViewById(R.id.heartRateBtn);
         measureRespRate = findViewById(R.id.respRateBtn);
+        uploadBtn = findViewById(R.id.uploadBtn);
+
+        uploadBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                databaseHelper.insert(Float.parseFloat(heartRate), Float.parseFloat(respRate), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            }
+        });
+
 
         activityResultLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             if (result.getResultCode() == RESULT_OK && result.getData() != null){

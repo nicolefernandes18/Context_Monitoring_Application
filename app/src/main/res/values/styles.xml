@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="ToolBarStyle">
+    <style name="ToolBarStyle" parent="Theme.AppCompat">
         <item name="android:fontFamily">sans-serif</item>
-        <item name="android:textSize">20sp</item>
+        <item name="android:textSize">15sp</item>
     </style>
 </resources>
